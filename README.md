@@ -3,10 +3,7 @@
 ## Description:
 A different ownership system that Web3 hasn't yet seen.
 
-## TODO: only allow trades of trusted people
-
-
-### Creating an asset / a store (where you sell assets):
+## Creating an asset / a store (where you sell assets):
 
 1. The network must accept your store canister to be part of the network.
 2. Your store needs to have a backpack with your assets
@@ -16,6 +13,8 @@ A different ownership system that Web3 hasn't yet seen.
 ## Exploring further / takeaways:
 
 - maybe we need some sort of deal standard in which 2 people agree on something, because more than one module uses it and more will
+
+- instead of trading directly, it is possible to allow someone to put an asset for sale to anyone
 
 - Undercollateralized borrowing is possible with the backpack if:
   -  Each real world person can have one and one only person canister

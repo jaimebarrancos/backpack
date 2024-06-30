@@ -5,6 +5,9 @@ import Result "mo:base/Result";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";
 
+// TODO: only allow trades of trusted people
+// add cycle costs
+
 actor {
 
     public type Asset = Backpack.Asset;
@@ -17,43 +20,61 @@ actor {
     let tradeRequests = Buffer.Buffer<TradeRequest>(0);
     let nextTradeId = 0;
 
-
+    // for now you always need to give an asset
     public shared ({ caller }) func reboot_backpack_requestTrade(
         toBackpackPrincipal : Principal,
-        giveAssetPrincipal : Principal,
+        giveAssetPrincipal : ?Principal,
         receiveAssetPrincipal : ?Principal,
         giveQuantity : Nat,
         receiveQuantity : Nat,
     ) : async Result<(), Text> {
-
         assert (caller == owner);
         if (caller != owner) {
             return #err("Caller must be the owner of the backpack.");
         };
-        switch (backpack.get(giveAssetPrincipal)) {
+        
+        switch (giveAssetPrincipal) {
             case (null) {
-                return #err("Asset not in your backpack");
+                return #err("You must give an asset.");
             };
-            case (?asset) {
-                let toBackpack : BackpackCanister = actor (Principal.toText(toBackpackPrincipal));
-                try {
-                    await toBackpack.reboot_backpack_receiveTradeRequest(
-                        giveAssetPrincipal,
-                        receiveAssetPrincipal,
-                        giveQuantity,
-                        receiveQuantity,
-                    );
-                    return #ok(());
-                } catch (err) {
-                    return #err("Failed to send trade request.");
+            case (?_giveAssetPrincipal) {
+                switch (backpack.get(_giveAssetPrincipal)) {
+                    case (null) {
+                        return #err("Asset not in your backpack");
+                    };
+                    case (?asset) {
+                        let trade : TradeRequest = {
+                            id = nextTradeId;
+                            destinyBackpack = caller;
+                            giveAsset = giveAssetPrincipal;
+                            receiveAsset = receiveAssetPrincipal;
+                            giveQuantity = giveQuantity;
+                            receiveQuantity = receiveQuantity;
+                        };
+                        tradeRequests.add(trade);
+
+                        let toBackpack : BackpackCanister = actor (Principal.toText(toBackpackPrincipal));
+                        try { // if this call fails, the trade request will still exist
+                            
+                            return await toBackpack.reboot_backpack_receiveTradeRequest(
+                                _giveAssetPrincipal,
+                                receiveAssetPrincipal,
+                                giveQuantity,
+                                receiveQuantity,
+                            );
+                        } catch (err) {
+                            return #err("Failed to send trade request.");
+                        };
+                    };
                 };
             };
-        };
+        }
+
     };
 
 
     public shared ({ caller }) func reboot_backpack_receiveTradeRequest(
-        giveAssetPrincipal : Principal,
+        giveAssetPrincipal : ?Principal,
         receiveAssetPrincipal : ?Principal,
         giveQuantity : Nat,
         receiveQuantity : Nat,
@@ -63,6 +84,7 @@ actor {
 
         let trade : TradeRequest = {
             id = nextTradeId;
+            destinyBackpack = caller;
             giveAsset = receiveAssetPrincipal;
             receiveAsset = giveAssetPrincipal;
             giveQuantity = giveQuantity;
@@ -73,6 +95,46 @@ actor {
         return #ok();
     };
 
+    public shared ({ caller }) func reboot_backpack_receiveHandledTradeRequest(
+        id : Nat,
+        name : Text,
+    ) : async Result<(), Text> {
+        for (tradeRequest in tradeRequests.vals()) {
+            if (tradeRequest.id == id and tradeRequest.destinyBackpack == caller) {
+                switch (tradeRequest.receiveAsset) {
+                    case (null) {};
+                    case (?receive) {
+                        backpack.put(
+                            receive,
+                            {
+                                quantity = tradeRequest.receiveQuantity;
+                                principal = receive;
+                                name = name;
+                                isPrivate = false;
+                            },
+                        );
+                    };
+                };
+                switch (tradeRequest.giveAsset) {
+                    case (null) {};
+                    case (?give) {
+                        switch (backpack.remove(give)) {
+                            case (null) {
+                                return #err("Asset not in your backpack.");
+                            };
+                            case (?asset) {};
+                        };                
+                        return #ok();
+                    };
+                };
+                let _ = tradeRequests.remove(tradeRequest.id);
+
+                return #ok();
+            };
+        };
+        return #err("No trade request found.");
+    };
+
 
     public shared ({ caller }) func reboot_backpack_handleTradeRequest(
         id : Nat,
@@ -81,42 +143,58 @@ actor {
         name : Text,
     ) : async Result<(), Text> {
         assert (caller == owner);
-
+        
         for (tradeRequest in tradeRequests.vals()) {
             if (tradeRequest.id == id) {
                 if (acceptTrade == true) {
                     switch (tradeRequest.giveAsset) {
                         case (null) {};
                         case (?asset) {
-                            // TODO: give asset to the canister that called sendTradeRequest (and remove what he sent)
+                            let toBackpack : BackpackCanister = actor (Principal.toText(tradeRequest.destinyBackpack));
+                            try { // if this call fails, the trade request will still exist
+                                return await toBackpack.reboot_backpack_receiveHandledTradeRequest(
+                                    id,
+                                    name,
+                                );
+                            } catch (err) {
+                                return #err("Failed to send trade request.");
+                            };
+                        };
+                    };
+                    switch (tradeRequest.receiveAsset) {
+                        case (null) {
+                            return #err("You must receive an asset.");
+                        };
+                        case (?receive) {
+                            backpack.put(
+                                receive,
+                                {
+                                    quantity = tradeRequest.receiveQuantity;
+                                    principal = receive;
+                                    name = name;
+                                    isPrivate = isPrivate;
+                                },
+                            );
                             return #ok();
                         };
                     };
-
-                    backpack.put(
-                        tradeRequest.receiveAsset,
-                        {
-                            quantity = tradeRequest.receiveQuantity;
-                            principal = tradeRequest.receiveAsset;
-                            name = name;
-                            isPrivate = isPrivate;
-                        },
-                    );
-                    return #ok();
-
                 };
-                switch (backpack.remove(tradeRequest.receiveAsset)) {
-                    case (null) {
-                        return #err("Asset not in your backpack.");
+                switch (tradeRequest.giveAsset) {
+                    case (null) {};
+                    case (?give) {
+                        switch (backpack.remove(give)) {
+                            case (null) {
+                                return #err("Asset not in your backpack.");
+                            };
+                            case (?asset) {};
+                        };
                     };
-                    case (?asset) {};
                 };
+                let _ = tradeRequests.remove(tradeRequest.id);
                 return #ok();
             };
-
         };
         return #err("No trade request found.");
-
     };
 
 
