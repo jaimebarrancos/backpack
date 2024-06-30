@@ -3,6 +3,7 @@
 ## Description:
 A different ownership system that Web3 hasn't yet seen.
 
+## TODO: only allow trades of trusted people
 
 
 ### Creating an asset / a store (where you sell assets):
@@ -12,9 +13,18 @@ A different ownership system that Web3 hasn't yet seen.
 3. The only way to know if the person calling your canister is the owner is to call the reboot_backpack_checkOwnership of the caller canister.
 
 
-### Available methods
+## Exploring further / takeaways:
 
-## TODO: only allow trades of trusted people
+- maybe we need some sort of deal standard in which 2 people agree on something, because more than one module uses it and more will
+
+- Undercollateralized borrowing is possible with the backpack if:
+  -  Each real world person can have one and one only person canister
+  - A penalisation system, like a fine if you break your promise (or maybe a trust factor)
+
+- Still need a way to know if someone is part of the network and can be trusted
+
+
+### Available methods
 
 #### reboot_backpack_checkOwnership(asset : principal)
 check if any asset of that collection is in the backpack
@@ -37,3 +47,5 @@ accept or decline a transfer request (only owner)
 
 #### reboot_backpack_removeAsset(asset)
 remove an asset from your backpack - this will make the object permenantly dissapear (only owner)
+
+

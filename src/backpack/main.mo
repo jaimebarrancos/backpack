@@ -17,6 +17,7 @@ actor {
     let tradeRequests = Buffer.Buffer<TradeRequest>(0);
     let nextTradeId = 0;
 
+
     public shared ({ caller }) func reboot_backpack_requestTrade(
         toBackpackPrincipal : Principal,
         giveAssetPrincipal : Principal,
@@ -50,12 +51,15 @@ actor {
         };
     };
 
+
     public shared ({ caller }) func reboot_backpack_receiveTradeRequest(
         giveAssetPrincipal : Principal,
         receiveAssetPrincipal : ?Principal,
         giveQuantity : Nat,
         receiveQuantity : Nat,
     ) : async Result<(), Text> {
+
+        //TODO: check if caller is part of the network
 
         let trade : TradeRequest = {
             id = nextTradeId;
@@ -68,6 +72,7 @@ actor {
         tradeRequests.add(trade);
         return #ok();
     };
+
 
     public shared ({ caller }) func reboot_backpack_handleTradeRequest(
         id : Nat,
@@ -114,6 +119,7 @@ actor {
 
     };
 
+
     public shared ({caller}) func reboot_backpack_removeAsset(assetPrincipal : Principal) : async Result<(), Text> {
         assert (caller == owner);
         switch (backpack.remove(assetPrincipal)) {
@@ -126,8 +132,8 @@ actor {
         };
     };
 
-    public shared ({caller}) func reboot_backpack_viewPublicBackpack() : async [Asset] {
-        assert (caller == owner);
+
+    public shared func reboot_backpack_viewPublicBackpack() : async [Asset] {
         let result = Iter.filter(backpack.vals(), func (asset : Asset) : Bool {
             if (asset.isPrivate == true) {
                 return false
