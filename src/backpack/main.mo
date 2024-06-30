@@ -3,6 +3,7 @@ import Principal "mo:base/Principal";
 import Backpack "./types";
 import Result "mo:base/Result";
 import Buffer "mo:base/Buffer";
+import Iter "mo:base/Iter";
 
 actor {
 
@@ -111,6 +112,39 @@ actor {
         };
         return #err("No trade request found.");
 
+    };
+
+    public shared ({caller}) func reboot_backpack_removeAsset(assetPrincipal : Principal) : async Result<(), Text> {
+        assert (caller == owner);
+        switch (backpack.remove(assetPrincipal)) {
+            case (null) {
+                return #err("Asset not in your backpack.");
+            };
+            case (?asset) {
+                return #ok();
+            };
+        };
+    };
+
+    public shared ({caller}) func reboot_backpack_viewPublicBackpack() : async [Asset] {
+        assert (caller == owner);
+        let result = Iter.filter(backpack.vals(), func (asset : Asset) : Bool {
+            if (asset.isPrivate == true) {
+                return false
+            };
+            return true;
+        });
+        return Iter.toArray(result);
+    };
+
+    public shared ({caller}) func reboot_backpack_viewBackpack() : async [Asset] {
+        assert (caller == owner);
+        return Iter.toArray(backpack.vals());
+    };
+
+    public shared ({caller}) func reboot_backpack_viewTradeRequests() : async [TradeRequest] {
+        assert (caller == owner);
+        return Iter.toArray(tradeRequests.vals());
     };
 
     // if the asset is private, this function will return false

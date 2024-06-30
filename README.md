@@ -14,6 +14,8 @@ A different ownership system that Web3 hasn't yet seen.
 
 ### Available methods
 
+## TODO: only allow trades of trusted people
+
 #### reboot_backpack_checkOwnership(asset : principal)
 check if any asset of that collection is in the backpack
 
@@ -25,12 +27,13 @@ reboot_backpack_requestTrade
         giveQuantity : Nat,
         receiveQuantity : Nat,
 ```
-send a trade request to `toBackpackPrincipal` to give `giveQuantity` amount of `giveAssetPrincipal` in exchange of `receiveQuantity` amount of `receiveAssetPrincipal` (only owner)
+send a trade request to `toBackpackPrincipal` to give `giveQuantity` amount of assets of the  `giveAssetPrincipal` in exchange of `receiveQuantity` amount of assets of the `receiveAssetPrincipal` (only owner)
+
+#### reboot_backpack_receiveTradeRequest(asset)
+store a new trade request
 
 #### reboot_backpack_handleTradeRequest(asset)
-accept or decline a transfer request
-(only owner)
+accept or decline a transfer request (only owner)
 
 #### reboot_backpack_removeAsset(asset)
-remove an asset from your backpack
-(only owner)
+remove an asset from your backpack - this will make the object permenantly dissapear (only owner)
